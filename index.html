@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест на IQ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom animation for modal */
+        .modal-enter {
+            animation: modalEnter 0.3s ease-out;
+        }
+        @keyframes modalEnter {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        /* Button hover and click animations */
+        .btn-animate {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-animate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-animate:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div id="app" class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+        <div id="start-screen">
+            <h1 class="text-2xl font-bold mb-4 text-center">Тест на IQ</h1>
+            <p class="mb-4 text-center">Ответьте на 50 вопросов, чтобы узнать свой уровень IQ!</p>
+            <button onclick="startTest()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Начать тест</button>
+        </div>
+        <div id="question-screen" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">Вопрос <span id="question-number"></span> из 20</h2>
+            <p id="question-text" class="mb-4"></p>
+            <div id="options" class="space-y-2"></div>
+            <button onclick="nextQuestion()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600 mt-4">Следующий вопрос</button>
+        </div>
+        <div id="result-screen" class="hidden">
+            <h1 class="text-2xl font-bold mb-4 text-center">Ваш результат</h1>
+            <p class="text-lg mb-4 text-center">Ваш уровень IQ: <span id="iq-result" class="font-bold"></span></p>
+            <button onclick="restartTest()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Пройти заново</button>
+        </div>
+    </div>
+
+    <!-- Modal for no answer selected -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded-lg max-w-sm w-full modal-enter">
+            <h3 class="text-lg font-semibold mb-4">Ошибка</h3>
+            <p class="mb-4">Пожалуйста, выберите один из вариантов ответа!</p>
+            <button onclick="closeModal()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Закрыть</button>
+        </div>
+    </div>
+
+    <script>
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+
+        let questions = [];
+        let currentQuestion = 0;
+        let score = 0;
+        let selectedOption = null;
+
+        // Fetch questions from JSON file
+        fetch('questions.json')
+            .then(response => response.json())
+            .then(data => {
+                questions = data;
+            })
+            .catch(error => console.error('Error loading questions:', error));
+
+        function startTest() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('question-screen').classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const q = questions[currentQuestion];
+            document.getElementById('question-number').textContent = currentQuestion + 1;
+            document.getElementById('question-text').textContent = q.question;
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            selectedOption = null;
+            q.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                button.className = 'w-full bg-gray-200 py-2 rounded btn-animate hover:bg-gray-300';
+                button.textContent = option;
+                button.onclick = () => selectOption(index, button);
+                optionsDiv.appendChild(button);
+            });
+        }
+
+        function selectOption(index, button) {
+            selectedOption = index;
+            const buttons = document.getElementById('options').querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.classList.remove('bg-blue-500', 'text-white');
+            });
+            button.classList.add('bg-blue-500', 'text-white');
+            if (index === questions[currentQuestion].answer) {
+                score++;
+            }
+        }
+
+        function nextQuestion() {
+            if (selectedOption === null) {
+                document.getElementById('modal').classList.remove('hidden');
+                return;
+            }
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion();
+            } else {
+                showResult();
+            }
+        }
+
+        function showResult() {
+            document.getElementById('question-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            const iq = Math.floor(Math.random() * 11) + 20;
+            document.getElementById('iq-result').textContent = iq;
+        }
+
+        function restartTest() {
+            currentQuestion = 0;
+            score = 0;
+            selectedOption = null;
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

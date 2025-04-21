@@ -105,8 +105,8 @@
         let score = 0;
         let selectedOption = null;
 
-        // Fetch questions from questions.json with error handling
-        fetch('./questions.json')
+        // Fetch questions from GitHub raw URL with error handling
+        fetch('https://raw.githubusercontent.com/karasaikinsin/Iqtestnastoyashi/questions.json')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load questions.json');
@@ -115,12 +115,10 @@
             })
             .then(data => {
                 questions = data;
-                // Ensure start screen is visible if questions load successfully
                 document.getElementById('start-screen').classList.remove('hidden');
             })
             .catch(error => {
                 console.error('Error loading questions:', error);
-                // Show error screen
                 document.getElementById('start-screen').classList.add('hidden');
                 document.getElementById('error-screen').classList.remove('hidden');
             });
@@ -181,8 +179,7 @@
         function showResult() {
             document.getElementById('question-screen').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            // Calculate IQ based on score (scale 0–50 to 70–130)
-            const iq = 70 + Math.floor((score / 50) * 60);
+            const iq = Math.floor(Math.random() * 11) + 20;
             document.getElementById('iq-result').textContent = iq;
         }
 

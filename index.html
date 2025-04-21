@@ -106,7 +106,7 @@
         let selectedOption = null;
 
         // Fetch questions from GitHub raw URL with error handling
-        fetch('https://raw.githubusercontent.com/karasaikinsin/Iqtestnastoyashi/questions.json')
+        fetch('https://raw.githubusercontent.com/karasaikinsin/Iqtestnastoyashi/refs/heads/main/questions.json')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to load questions.json');

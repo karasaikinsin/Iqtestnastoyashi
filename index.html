@@ -42,7 +42,7 @@
             <button onclick="startTest()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Начать тест</button>
         </div>
         <div id="question-screen" class="hidden">
-            <h2 class="text-xl font-semibold mb-4">Вопрос <span id="question-number"></span> из 20</h2>
+            <h2 class="text-xl font-semibold mb-4">Вопрос <span id="question-number"></span> из 50</h2>
             <p id="question-text" class="mb-4"></p>
             <div id="options" class="space-y-2"></div>
             <button onclick="nextQuestion()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600 mt-4">Следующий вопрос</button>
@@ -51,6 +51,11 @@
             <h1 class="text-2xl font-bold mb-4 text-center">Ваш результат</h1>
             <p class="text-lg mb-4 text-center">Ваш уровень IQ: <span id="iq-result" class="font-bold"></span></p>
             <button onclick="restartTest()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Пройти заново</button>
+        </div>
+        <div id="error-screen" class="hidden">
+            <h1 class="text-2xl font-bold mb-4 text-center text-red-600">Ошибка</h1>
+            <p class="text-lg mb-4 text-center">Не удалось загрузить вопросы. Пожалуйста, попробуйте позже.</p>
+            <button onclick="window.location.reload()" class="w-full bg-blue-500 text-white py-2 rounded btn-animate hover:bg-blue-600">Попробовать снова</button>
         </div>
     </div>
 
@@ -100,15 +105,32 @@
         let score = 0;
         let selectedOption = null;
 
-        // Fetch questions from JSON file
-        fetch('questions.json')
-            .then(response => response.json())
+        // Fetch questions from questions.json with error handling
+        fetch('./questions.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load questions.json');
+                }
+                return response.json();
+            })
             .then(data => {
                 questions = data;
+                // Ensure start screen is visible if questions load successfully
+                document.getElementById('start-screen').classList.remove('hidden');
             })
-            .catch(error => console.error('Error loading questions:', error));
+            .catch(error => {
+                console.error('Error loading questions:', error);
+                // Show error screen
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('error-screen').classList.remove('hidden');
+            });
 
         function startTest() {
+            if (questions.length === 0) {
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('error-screen').classList.remove('hidden');
+                return;
+            }
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('question-screen').classList.remove('hidden');
             loadQuestion();
@@ -159,7 +181,8 @@
         function showResult() {
             document.getElementById('question-screen').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            const iq = Math.floor(Math.random() * 11) + 20;
+            // Calculate IQ based on score (scale 0–50 to 70–130)
+            const iq = 70 + Math.floor((score / 50) * 60);
             document.getElementById('iq-result').textContent = iq;
         }
 
